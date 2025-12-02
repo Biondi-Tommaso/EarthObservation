@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard UHI Genova - Mappe Interattive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-text: #2c3e50;
+            --secondary-text: #596a7b;
+            --bg-color: #f8f9fa;
+            --node-bg: #ffffff;
+            --line-color: #3498db;
+            --central-line-width: 6px;
+            --connector-color: #bdc3c7;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--primary-text);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-text);
+        }
+        
+        
+        .map-grid-container {
+            max-width: 1200px;
+            margin: 0 auto 80px auto;
+        }
+
+        .map-grid-container h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+            color: var(--primary-text);
+        }
+
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+        }
+
+        .map-item {
+            background: var(--node-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+        }
+
+        .map-item h3 {
+            margin-top: 0;
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--primary-text);
+        }
+        
+        
+        .map-item > div {
+             min-height: 450px;
+        }
+
+        .mindmap-container {
+            position: relative;
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .central-line {
+            position: absolute;
+            left: 50%; top: 0; bottom: 0;
+            width: var(--central-line-width);
+            background: linear-gradient(180deg, #3498db, #8e44ad);
+            transform: translateX(-50%);
+            border-radius: 3px; z-index: 0;
+        }
+
+        .central-label {
+            position: sticky; top: 20px;
+            background: rgba(44, 62, 80, 0.9);
+            color: white; padding: 12px 25px;
+            border-radius: 50px; z-index: 10;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            width: fit-content;
+            margin: 0 auto 40px auto;
+            backdrop-filter: blur(5px);
+        }
+
+        .row { display: flex; position: relative; z-index: 1; }
+        .node {
+            width: calc(50% - 50px);
+            background: var(--node-bg);
+            padding: 25px; border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+        .node:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .node h3 { margin-top: 0; color: var(--primary-text); font-size: 1.3rem; }
+        .node p { font-size: 0.95rem; line-height: 1.6; color: var(--secondary-text); }
+        .input-node { margin-right: auto; border-left: 5px solid #2ecc71; }
+        .output-node { margin-left: auto; border-left: 5px solid #e74c3c; }
+        
+        .node::after {
+            content: ''; position: absolute;
+            top: 50%; height: 3px;
+            background-color: var(--connector-color);
+            width: 50px;
+        }
+        .input-node::after { right: -50px; }
+        .output-node::after { left: -50px; }
+        
+        .tag {
+            font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
+            letter-spacing: 1px; padding: 4px 10px; border-radius: 20px;
+            display: inline-block; margin-bottom: 15px;
+        }
+        .tag-in { background-color: rgba(46, 204, 113, 0.1); color: #27ae60; }
+        .tag-out { background-color: rgba(231, 76, 60, 0.1); color: #c0392b; }
+
+        @media (max-width: 900px) {
+            .map-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header h1 { font-size: 2rem; }
+            .central-line { left: 20px; transform: none; }
+            .central-label { position: static; transform: none; margin-left: 0; margin-bottom: 40px; }
+            .row { justify-content: flex-start; }
+            .node { width: calc(100% - 50px); margin-left: 50px; text-align: left; }
+            .input-node, .output-node { margin-left: 50px; margin-right: 0; }
+            .node::after, .input-node::after, .output-node::after { left: -50px; right: auto; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Analisi delle Isole di Calore Urbane a Genova</h1>
+        <p>Un flusso di lavoro basato su Telerilevamento e Google Earth Engine</p>
+    </header>
+
+    <section class="map-grid-container">
+        <h2>Mappe Interattive del Progetto</h2>
+        <div class="map-grid">
+            <div class="map-item">
+                <h3>Mappa 1: LST Preliminare</h3>
+                <!-- MAPPA 1: SCRIPT WIDGET-VIEW -->
+                <!-- Esempio: <script type="application/vnd.jupyter.widget-view+json">{"model_id": "ID_MAPPA_1"}</script> -->
+                 
+            </div>
+            <div class="map-item">
+                <h3>Mappa 2: Aree UHI Normalizzate</h3>
+                <!-- MAPPA 2: SCRIPT WIDGET-VIEW -->
+            </div>
+            <div class="map-item">
+                <h3>Mappa 3: Indice NDVI</h3>
+                <!-- MAPPA 3:  SCRIPT WIDGET-VIEW -->
+            </div>
+            <div class="map-item">
+                <h3>Mappa 4: Indice NDBI</h3>
+                <!-- MAPPA 4: SCRIPT WIDGET-VIEW -->
+            </div>
+        </div>
+    </section>
+
+    <div class="mindmap-container">
+        <div class="central-label">GOOGLE EARTH ENGINE</div>
+        <div class="central-line"></div>
+        <div class="row"><div class="node input-node"><span class="tag tag-in">Input Satellitare</span><h3>Landsat 8 OLI/TIRS</h3><p>Acquisizione delle bande termiche per il calcolo della Land Surface Temperature (LST). Utilizzo delle collezioni USGS disponibili su GEE.</p></div></div>
+        <div class="row"><div class="node output-node"><span class="tag tag-out">Risultato Preliminare</span><h3>Mappa Divergenza LST</h3><p>Elaborazione della prima mappa di temperatura, mostrando le prime anomalie termiche grezze prima della correzione orografica.</p></div></div>
+        <div class="row"><div class="node input-node"><span class="tag tag-in">Dati Ausiliari</span><h3>Modello Digitale di Elevazione (DEM)</h3><p>Integrazione del dataset SRTM per ottenere stime precise dell'altitudine, essenziale per normalizzare la LST.</p></div></div>
+        <div class="row"><div class="node output-node"><span class="tag tag-out">Analisi Target</span><h3>Identificazione Aree Critiche</h3><p>Grazie alla normalizzazione LST/Altitudine, sono state isolate 3 aree specifiche dove l'effetto isola di calore è statisticamente più significativo.</p></div></div>
+        <div class="row"><div class="node input-node"><span class="tag tag-in">Dati di Contesto</span><h3>ESA WorldCover v200</h3><p>Dataset di copertura del suolo usato per distinguere le classi di "aree edificate" dalla vegetazione per il calcolo di NDVI e NDBI.</p></div></div>
+        <div class="row"><div class="node output-node"><span class="tag tag-out">Output Finale</span><h3>Correlazioni LST vs Land Cover</h3><p>Analisi multicriterio che mostra una forte correlazione positiva tra LST e aree edificate (NDBI) e negativa con la vegetazione (NDVI).</p></div></div>
+    </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js" crossorigin="anonymous"></script>
+
+    <script type="application/vnd.jupyter.widget-state+json">
+    {
+      "version_major": 2,
+      "version_minor": 0,
+      "state": {
+        //
+        // UNISCI QUI GLI "STATE" DI TUTTE E 4 LE TUE MAPPE
+        //
+        // Esempio:
+        // "6055f85c50d3441381d3cc8821600e3e": { "model_name": "LayoutModel", ... },
+        // "c4b97952dfc342c88631152874cd4bbf": { "model_name": "LeafletMapModel", ... },
+        // "altro_id_dalla_mappa_2": { ... },
+        // "e_cosi_via_per_le_altre": { ... }
+        //
+        // Assicurati che ogni oggetto JSON finisca con una virgola, tranne l'ultimo.
+        
+      }
+    }
+    </script>
+
+</body>
+</html>
