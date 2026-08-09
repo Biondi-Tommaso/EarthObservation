@@ -1,228 +1,951 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard UHI Genova - Mappe Interattive</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-text: #2c3e50;
-            --secondary-text: #596a7b;
-            --bg-color: #f8f9fa;
-            --node-bg: #ffffff;
-            --line-color: #3498db;
-            --central-line-width: 6px;
-            --connector-color: #bdc3c7;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>Isole di Calore Urbano · Genova — Earth Observation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #f4f7f5;
+    --panel: #ffffff;
+    --panel-2: #eef2f0;
+    --ink: #0e1d1a;
+    --muted: #4c635c;
+    --muted-dim: #8ea198;
+    --line: rgba(14,29,26,0.10);
+    --line-strong: rgba(14,29,26,0.18);
+    --cool: #1f8aa8;
+    --warm: #e0501f;
+    --amber: #c9821c;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
 
-        * {
-            box-sizing: border-box;
-        }
+  *{ box-sizing:border-box; margin:0; padding:0; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 20px;
-            color: var(--primary-text);
-        }
+  html{ scroll-behavior:smooth; }
 
-        header {
-            text-align: center;
-            margin-bottom: 60px;
-        }
-        
-        header h1 {
-            font-size: 2.5rem;
-            color: var(--primary-text);
-        }
-        
-        
-        .map-grid-container {
-            max-width: 1200px;
-            margin: 0 auto 80px auto;
-        }
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
 
-        .map-grid-container h2 {
-            text-align: center;
-            font-size: 2rem;
-            margin-bottom: 40px;
-            color: var(--primary-text);
-        }
+  ::selection{ background:var(--warm); color:#fdf6f2; }
 
-        .map-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 30px;
-        }
+  a{ color:inherit; }
 
-        .map-item {
-            background: var(--node-bg);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.07);
-        }
+  /* faint satellite-grid backdrop */
+  .grid-bg{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 56px 56px;
+    opacity:0.55;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 90%);
+  }
 
-        .map-item h3 {
-            margin-top: 0;
-            text-align: center;
-            font-size: 1.2rem;
-            color: var(--primary-text);
-        }
-        
-        
-        .map-item > div {
-             min-height: 450px;
-        }
+  /* thermal scroll indicator — cool at top, warm as you descend into the data */
+  .heat-rail{
+    position:fixed;
+    left:0; top:0; bottom:0;
+    width:3px;
+    z-index:50;
+    background:var(--line);
+  }
+  .heat-rail__fill{
+    position:absolute;
+    left:0; top:0; width:100%;
+    height:0%;
+    background:linear-gradient(180deg, var(--cool), var(--amber) 55%, var(--warm));
+    transition:height 0.08s linear;
+  }
 
-        .mindmap-container {
-            position: relative;
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+  section{ position:relative; z-index:1; }
 
-        .central-line {
-            position: absolute;
-            left: 50%; top: 0; bottom: 0;
-            width: var(--central-line-width);
-            background: linear-gradient(180deg, #3498db, #8e44ad);
-            transform: translateX(-50%);
-            border-radius: 3px; z-index: 0;
-        }
+  .wrap{
+    max-width:920px;
+    margin:0 auto;
+    padding:0 28px;
+  }
 
-        .central-label {
-            position: sticky; top: 20px;
-            background: rgba(44, 62, 80, 0.9);
-            color: white; padding: 12px 25px;
-            border-radius: 50px; z-index: 10;
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            width: fit-content;
-            margin: 0 auto 40px auto;
-            backdrop-filter: blur(5px);
-        }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--cool);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px; height:7px;
+    background:var(--cool);
+    border-radius:50%;
+    flex:none;
+  }
 
-        .row { display: flex; position: relative; z-index: 1; }
-        .node {
-            width: calc(50% - 50px);
-            background: var(--node-bg);
-            padding: 25px; border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.07);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            position: relative;
-        }
-        .node:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .node h3 { margin-top: 0; color: var(--primary-text); font-size: 1.3rem; }
-        .node p { font-size: 0.95rem; line-height: 1.6; color: var(--secondary-text); }
-        .input-node { margin-right: auto; border-left: 5px solid #2ecc71; }
-        .output-node { margin-left: auto; border-left: 5px solid #e74c3c; }
-        
-        .node::after {
-            content: ''; position: absolute;
-            top: 50%; height: 3px;
-            background-color: var(--connector-color);
-            width: 50px;
-        }
-        .input-node::after { right: -50px; }
-        .output-node::after { left: -50px; }
-        
-        .tag {
-            font-size: 0.75rem; font-weight: bold; text-transform: uppercase;
-            letter-spacing: 1px; padding: 4px 10px; border-radius: 20px;
-            display: inline-block; margin-bottom: 15px;
-        }
-        .tag-in { background-color: rgba(46, 204, 113, 0.1); color: #27ae60; }
-        .tag-out { background-color: rgba(231, 76, 60, 0.1); color: #c0392b; }
+  h1,h2,h3{ font-family:var(--display); font-weight:600; letter-spacing:-0.01em; }
 
-        @media (max-width: 900px) {
-            .map-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            header h1 { font-size: 2rem; }
-            .central-line { left: 20px; transform: none; }
-            .central-label { position: static; transform: none; margin-left: 0; margin-bottom: 40px; }
-            .row { justify-content: flex-start; }
-            .node { width: calc(100% - 50px); margin-left: 50px; text-align: left; }
-            .input-node, .output-node { margin-left: 50px; margin-right: 0; }
-            .node::after, .input-node::after, .output-node::after { left: -50px; right: auto; }
-        }
+  /* ---------- HERO ---------- */
+  .hero{
+    min-height:100svh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:120px 0 80px;
+  }
+  .hero .eyebrow{
+    opacity:0; transform:translateY(10px);
+    transition:opacity 0.7s ease, transform 0.7s ease;
+  }
+  .hero h1{
+    margin-top:22px;
+    font-size:clamp(2.4rem, 6vw, 4.6rem);
+    line-height:1.04;
+    max-width:15ch;
+    opacity:0; transform:translateY(16px);
+    transition:opacity 0.8s ease 0.12s, transform 0.8s ease 0.12s;
+  }
+  .hero h1 em{
+    font-style:normal;
+    background:linear-gradient(90deg, var(--cool), var(--warm));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .hero p.lede{
+    margin-top:26px;
+    max-width:52ch;
+    font-size:1.1rem;
+    color:var(--muted);
+    opacity:0; transform:translateY(16px);
+    transition:opacity 0.8s ease 0.26s, transform 0.8s ease 0.26s;
+  }
+  .hero .actions{
+    margin-top:38px;
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    opacity:0; transform:translateY(16px);
+    transition:opacity 0.8s ease 0.4s, transform 0.8s ease 0.4s;
+  }
+  .hero.is-ready .eyebrow,
+  .hero.is-ready h1,
+  .hero.is-ready p.lede,
+  .hero.is-ready .actions{
+    opacity:1; transform:translateY(0);
+  }
 
-    </style>
+  .btn{
+    font-family:var(--mono);
+    font-size:13px;
+    letter-spacing:0.03em;
+    padding:13px 20px;
+    border-radius:3px;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    transition:transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    border:1px solid var(--line-strong);
+  }
+  .btn:hover{ transform:translateY(-2px); }
+  .btn--solid{ background:var(--warm); color:#fdf6f2; border-color:var(--warm); }
+  .btn--solid:hover{ background:#c9451a; }
+  .btn--ghost{ color:var(--ink); }
+  .btn--ghost:hover{ border-color:var(--cool); color:var(--cool); }
+
+  .scroll-cue{
+    margin-top:auto;
+    padding-top:60px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--muted-dim);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    opacity:0;
+    transition:opacity 1s ease 0.7s;
+  }
+  .hero.is-ready .scroll-cue{ opacity:1; }
+  .scroll-cue__line{
+    width:1px; height:34px;
+    background:linear-gradient(180deg, var(--muted-dim), transparent);
+    animation:pulse-down 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse-down{
+    0%,100%{ transform:scaleY(1); opacity:0.5;}
+    50%{ transform:scaleY(0.6); opacity:1;}
+  }
+
+  /* ---------- REVEAL SYSTEM ---------- */
+  .reveal{
+    opacity:0;
+    transform:translateY(28px);
+    transition:opacity 0.8s cubic-bezier(.2,.65,.3,1), transform 0.8s cubic-bezier(.2,.65,.3,1);
+  }
+  .reveal.is-visible{ opacity:1; transform:translateY(0); }
+  .reveal-group > *{ transition-delay:calc(var(--i, 0) * 90ms); }
+
+  /* ---------- SECTION SHELL ---------- */
+  .section{
+    padding:120px 0;
+    border-top:1px solid var(--line);
+  }
+  .section__head{ max-width:640px; margin-bottom:56px; }
+  .section__head h2{
+    margin-top:16px;
+    font-size:clamp(1.7rem, 3.4vw, 2.5rem);
+  }
+  .section__head p{
+    margin-top:18px;
+    color:var(--muted);
+    font-size:1.02rem;
+    max-width:56ch;
+  }
+
+  /* ---------- ABSTRACT ---------- */
+  .abstract-grid{
+    display:grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap:48px;
+    align-items:start;
+  }
+  .abstract-grid p{ color:var(--muted); font-size:1.02rem; }
+  .abstract-grid p + p{ margin-top:16px; }
+  .stat-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:26px;
+  }
+  .stat-card + .stat-card{ margin-top:14px; }
+  .stat-card .k{
+    font-family:var(--mono);
+    font-size:1.7rem;
+    color:var(--warm);
+  }
+  .stat-card .v{
+    margin-top:6px;
+    font-size:0.92rem;
+    color:var(--muted);
+  }
+
+  /* ---------- STUDY AREA ---------- */
+  .area-panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:36px;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:36px;
+    align-items:center;
+  }
+  .area-map{
+    aspect-ratio:1/1;
+    border-radius:6px;
+    position:relative;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 32% 70%, rgba(31,138,168,0.28), transparent 55%),
+      radial-gradient(circle at 62% 35%, rgba(224,80,31,0.22), transparent 50%),
+      linear-gradient(160deg, #e4ece8, #d3ddd8);
+    border:1px solid var(--line-strong);
+  }
+  .area-map::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image: radial-gradient(rgba(14,29,26,0.14) 1px, transparent 1px);
+    background-size:14px 14px;
+  }
+  .area-map .pin{
+    position:absolute;
+    left:47%; top:52%;
+    width:9px; height:9px;
+    background:var(--amber);
+    border-radius:50%;
+    box-shadow:0 0 0 6px rgba(255,178,56,0.18);
+  }
+  .area-map .coords{
+    position:absolute;
+    left:14px; bottom:14px;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+    background:rgba(255,255,255,0.75);
+    padding:6px 9px;
+    border-radius:4px;
+    border:1px solid var(--line);
+  }
+  .area-facts dl{ display:grid; grid-template-columns:auto 1fr; gap:10px 18px; }
+  .area-facts dt{ font-family:var(--mono); font-size:12px; color:var(--muted-dim); text-transform:uppercase; letter-spacing:0.06em; }
+  .area-facts dd{ color:var(--ink); font-size:0.96rem; }
+  .area-facts dl + p{ margin-top:20px; color:var(--muted); font-size:0.95rem; }
+
+  /* ---------- METHOD PIPELINE ---------- */
+  .pipeline{ counter-reset:step; }
+  .step{
+    display:grid;
+    grid-template-columns: 64px 1fr;
+    gap:24px;
+    padding:28px 0;
+    border-top:1px solid var(--line);
+  }
+  .step:last-child{ border-bottom:1px solid var(--line); }
+  .step__num{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--muted-dim);
+    padding-top:4px;
+  }
+  .step__num span{ color:var(--warm); }
+  .step h3{ font-size:1.15rem; font-weight:600; }
+  .step p{ margin-top:8px; color:var(--muted); font-size:0.98rem; max-width:64ch; }
+  .step .tag{
+    display:inline-block;
+    margin-top:12px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--cool);
+    background:rgba(63,167,201,0.1);
+    border:1px solid rgba(63,167,201,0.3);
+    padding:3px 9px;
+    border-radius:3px;
+  }
+
+  /* ---------- TIME SERIES CHART ---------- */
+  .ts-chart{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:28px 30px 20px;
+  }
+  .ts-chart__legend{
+    display:flex; gap:22px;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+  .ts-legend-item{ display:flex; align-items:center; gap:8px; }
+  .ts-legend-item i{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  #tsSvg{ width:100%; height:auto; display:block; overflow:visible; }
+  .ts-line{
+    fill:none;
+    stroke-width:2.5;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .ts-line.warm{ stroke:var(--warm); }
+  .ts-line.cool{ stroke:var(--cool); }
+  .ts-dot{ fill:var(--panel); stroke-width:2; opacity:0; transition:opacity 0.4s ease; }
+  .ts-chart.is-visible .ts-dot{ opacity:1; }
+  .ts-axis-label{
+    font-family:var(--mono);
+    font-size:10px;
+    fill:var(--muted-dim);
+  }
+  .ts-chart__caption{
+    margin-top:6px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--muted-dim);
+  }
+
+  /* ---------- LAND COVER ---------- */
+  .lc-classes{
+    display:flex; flex-wrap:wrap; gap:10px;
+    margin-top:8px;
+  }
+  .pill{
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:8px 14px;
+    border-radius:20px;
+    border:1px solid var(--line-strong);
+    color:var(--muted);
+    display:flex; align-items:center; gap:8px;
+  }
+  .pill i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .lc-chart{
+    margin-top:44px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:30px 30px 20px;
+  }
+  .lc-chart__bars{
+    display:flex; align-items:flex-end; gap:16px; height:170px;
+    margin-top:26px;
+  }
+  .lc-bar{
+    flex:1;
+    background:linear-gradient(180deg, var(--amber), var(--warm));
+    border-radius:4px 4px 0 0;
+    position:relative;
+    transform:scaleY(0);
+    transform-origin:bottom;
+    transition:transform 0.9s cubic-bezier(.2,.65,.3,1);
+    transition-delay:calc(var(--i,0) * 110ms);
+  }
+  .lc-chart.is-visible .lc-bar{ transform:scaleY(var(--h)); }
+  .lc-bar.cool{ background:linear-gradient(180deg, var(--cool), #0f4a5c); }
+  .lc-bar span{
+    position:absolute; bottom:-26px; left:0; right:0; text-align:center;
+    font-family:var(--mono); font-size:10.5px; color:var(--muted-dim);
+  }
+  .lc-bar b{
+    position:absolute; top:-22px; left:0; right:0; text-align:center;
+    font-family:var(--mono); font-size:11px; font-weight:500; color:var(--ink);
+    opacity:0; transition:opacity 0.4s ease 0.5s;
+  }
+  .lc-chart.is-visible .lc-bar b{ opacity:1; }
+  .lc-chart__caption{
+    margin-top:44px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--muted-dim);
+  }
+
+  /* ---------- FINDINGS ---------- */
+  .findings{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:20px;
+  }
+  .finding{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:26px;
+    background:var(--panel-2);
+  }
+  .finding .mark{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--warm);
+    letter-spacing:0.08em;
+  }
+  .finding h3{ margin-top:10px; font-size:1.05rem; font-weight:600; }
+  .finding p{ margin-top:10px; color:var(--muted); font-size:0.95rem; }
+
+  /* ---------- STACK ---------- */
+  .stack{
+    display:flex; flex-wrap:wrap; gap:10px;
+  }
+  .stack .pill{ color:var(--ink); }
+
+  /* ---------- CTA ---------- */
+  .cta{
+    text-align:center;
+    padding:140px 0 120px;
+  }
+  .cta h2{
+    font-size:clamp(1.8rem, 4vw, 2.8rem);
+    max-width:18ch;
+    margin:0 auto;
+  }
+  .cta p{ margin-top:18px; color:var(--muted); }
+  .cta .actions{
+    margin-top:34px;
+    display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+  }
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:36px 0 60px;
+  }
+  footer .wrap{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+  }
+  footer .foot-note{ font-family:var(--mono); font-size:12px; color:var(--muted-dim); }
+  footer nav{ display:flex; gap:20px; }
+  footer nav a{ font-family:var(--mono); font-size:12px; color:var(--muted); text-decoration:none; }
+  footer nav a:hover{ color:var(--cool); }
+
+  @media (max-width:760px){
+    .abstract-grid, .area-panel, .findings{ grid-template-columns:1fr; }
+    .section{ padding:80px 0; }
+    .step{ grid-template-columns:40px 1fr; gap:16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+    .reveal, .hero *{ opacity:1 !important; transform:none !important; }
+  }
+
+  .lc-bar{
+    flex:1;
+    height: 100%; /* <-- Aggiunto per dare altezza di riferimento */
+    background:linear-gradient(180deg, var(--amber), var(--warm));
+    border-radius:4px 4px 0 0;
+    position:relative;
+    transform:scaleY(0);
+    transform-origin:bottom;
+    transition:transform 0.9s cubic-bezier(.2,.65,.3,1);
+    transition-delay:calc(var(--i,0) * 110ms);
+  }
+</style>
+
+<!-- Leaflet CSS & JS per la mappa interattiva -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
 
-    <header>
-        <h1>Analisi delle Isole di Calore Urbane a Genova</h1>
-        <p>Un flusso di lavoro basato su Telerilevamento e Google Earth Engine</p>
-    </header>
+<div class="grid-bg"></div>
+<div class="heat-rail"><div class="heat-rail__fill" id="heatFill"></div></div>
 
-    <section class="map-grid-container">
-        <h2>Mappe Interattive del Progetto</h2>
-        <div class="map-grid">
-            <div class="map-item">
-                <h3>Mappa 1: LST Preliminare</h3>
-                <!-- MAPPA 1: SCRIPT WIDGET-VIEW -->
-                <!-- Esempio: <script type="application/vnd.jupyter.widget-view+json">{"model_id": "ID_MAPPA_1"}</script> -->
-                 
-            </div>
-            <div class="map-item">
-                <h3>Mappa 2: Aree UHI Normalizzate</h3>
-                <!-- MAPPA 2: SCRIPT WIDGET-VIEW -->
-            </div>
-            <div class="map-item">
-                <h3>Mappa 3: Indice NDVI</h3>
-                <!-- MAPPA 3:  SCRIPT WIDGET-VIEW -->
-            </div>
-            <div class="map-item">
-                <h3>Mappa 4: Indice NDBI</h3>
-                <!-- MAPPA 4: SCRIPT WIDGET-VIEW -->
-            </div>
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="wrap">
+    <div class="eyebrow">EARTH OBSERVATION · GENOVA · 2013–2025</div>
+    <h1>Le isole di calore di Genova,<br><em>viste dallo spazio.</em></h1>
+    <p class="lede">Un'analisi satellitare che incrocia temperatura superficiale, vegetazione e uso del suolo, per capire dove la città trattiene il calore — e distinguere una zona fresca perché verde da una zona fresca solo perché in collina.</p>
+    <div class="actions">
+      <a class="btn btn--solid" href="https://colab.research.google.com/github/Biondi-Tommaso/EarthObservation/blob/main/UHI_GE_Biondi.ipynb" target="_blank" rel="noopener">Apri il notebook →</a>
+      <a class="btn btn--ghost" href="https://github.com/Biondi-Tommaso/EarthObservation" target="_blank" rel="noopener">Codice sorgente</a>
+    </div>
+  </div>
+  <div class="wrap scroll-cue">
+    <div class="scroll-cue__line"></div>
+    Scorri per esplorare l'analisi
+  </div>
+</section>
+
+<!-- ABSTRACT -->
+<section class="section" id="abstract">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Il problema</div>
+      <h2>Non tutte le zone fresche sono verdi.</h2>
+    </div>
+    <div class="abstract-grid">
+      <div class="reveal">
+        <p>Le isole di calore urbano (UHI) si formano dove asfalto, cemento ed edifici assorbono e trattengono più calore rispetto a suoli vegetati o permeabili, alzando la temperatura superficiale nelle aree costruite.</p>
+        <p>Genova complica questa lettura: la città si stende lungo la costa e risale ripida verso le colline, quindi una zona può risultare "più fresca" semplicemente perché è più in quota — non perché sia più verde. Questo progetto normalizza l'effetto della quota per isolare il vero contributo della copertura del suolo alla temperatura.</p>
+      </div>
+      <div class="reveal">
+        <div class="stat-card">
+          <div class="k">+13 °C</div>
+          <div class="v">Divario medio tra la classe più calda (urbano) e la più fresca (acqua), a parità di quota</div>
         </div>
-    </section>
+        <div class="stat-card">
+          <div class="k">39 mesi</div>
+          <div class="v">Giugno–agosto, dal 2013 al 2025, ogni valore calcolato dai dati Landsat 8</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <div class="mindmap-container">
-        <div class="central-label">GOOGLE EARTH ENGINE</div>
-        <div class="central-line"></div>
-        <div class="row"><div class="node input-node"><span class="tag tag-in">Input Satellitare</span><h3>Landsat 8 OLI/TIRS</h3><p>Acquisizione delle bande termiche per il calcolo della Land Surface Temperature (LST). Utilizzo delle collezioni USGS disponibili su GEE.</p></div></div>
-        <div class="row"><div class="node output-node"><span class="tag tag-out">Risultato Preliminare</span><h3>Mappa Divergenza LST</h3><p>Elaborazione della prima mappa di temperatura, mostrando le prime anomalie termiche grezze prima della correzione orografica.</p></div></div>
-        <div class="row"><div class="node input-node"><span class="tag tag-in">Dati Ausiliari</span><h3>Modello Digitale di Elevazione (DEM)</h3><p>Integrazione del dataset SRTM per ottenere stime precise dell'altitudine, essenziale per normalizzare la LST.</p></div></div>
-        <div class="row"><div class="node output-node"><span class="tag tag-out">Analisi Target</span><h3>Identificazione Aree Critiche</h3><p>Grazie alla normalizzazione LST/Altitudine, sono state isolate 3 aree specifiche dove l'effetto isola di calore è statisticamente più significativo.</p></div></div>
-        <div class="row"><div class="node input-node"><span class="tag tag-in">Dati di Contesto</span><h3>ESA WorldCover v200</h3><p>Dataset di copertura del suolo usato per distinguere le classi di "aree edificate" dalla vegetazione per il calcolo di NDVI e NDBI.</p></div></div>
-        <div class="row"><div class="node output-node"><span class="tag tag-out">Output Finale</span><h3>Correlazioni LST vs Land Cover</h3><p>Analisi multicriterio che mostra una forte correlazione positiva tra LST e aree edificate (NDBI) e negativa con la vegetazione (NDVI).</p></div></div>
+<!-- STUDY AREA -->
+<section class="section" id="area">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Area di studio</div>
+      <h2>Genova, dalla costa alla collina.</h2>
+    </div>
+    <div class="area-panel reveal">
+      <div class="area-map" id="mapContainer" style="aspect-ratio: 1/1; width: 100%; min-height: 320px; border-radius: 6px; border: 1px solid var(--line-strong); overflow: hidden; z-index: 1;">
+        <!-- La mappa Leaflet verrà renderizzata qui -->
+      </div>
+      <div class="area-facts">
+        <dl>
+          <dt>Confine</dt><dd>Dataset GeoJSON dell'area di interesse (`Genova.geojson` da GitHub)</dd>
+          <dt>Risoluzione</dt><dd>Campionamento a 50–100 m per l'estrazione statistica</dd>
+          <dt>Periodo</dt><dd>Mesi estivi, 2013–2025, per massimizzare il segnale termico</dd>
+        </dl>
+        <p>Il gradiente costa–collina rende Genova un caso utile per testare quanto la topografia possa mascherare — o accentuare — l'effetto isola di calore.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- METHODOLOGY -->
+<section class="section" id="method">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Metodologia</div>
+      <h2>Dalla scena grezza al dato normalizzato.</h2>
+      <p>Ogni immagine satellitare attraversa la stessa catena di elaborazione, mese per mese e anno per anno, prima di entrare nel confronto finale.</p>
     </div>
 
+    <div class="pipeline reveal-group">
+      <div class="step reveal" style="--i:0">
+        <div class="step__num"><span>01</span> / 06</div>
+        <div>
+          <h3>Raccolta dati</h3>
+          <p>Composito di immagini Landsat 8 Collection 2, filtrato sull'area di interesse e sui mesi di giugno–agosto di ogni anno dal 2013 al 2025.</p>
+          <span class="tag">LANDSAT/LC08/C02/T1_L2</span>
+        </div>
+      </div>
+      <div class="step reveal" style="--i:1">
+        <div class="step__num"><span>02</span> / 06</div>
+        <div>
+          <h3>Mascheratura delle nuvole</h3>
+          <p>I pixel coperti da nuvole o dalla loro ombra vengono esclusi tramite i flag della banda di qualità QA_PIXEL, per non falsare le medie di temperatura.</p>
+          <span class="tag">QA_PIXEL bit 3 / bit 5</span>
+        </div>
+      </div>
+      <div class="step reveal" style="--i:2">
+        <div class="step__num"><span>03</span> / 06</div>
+        <div>
+          <h3>Calcolo dell'NDVI</h3>
+          <p>L'indice di vegetazione viene derivato dalla differenza normalizzata tra banda del vicino infrarosso e banda del rosso, come proxy della copertura vegetale.</p>
+          <span class="tag">NDVI = (NIR − Red) / (NIR + Red)</span>
+        </div>
+      </div>
+      <div class="step reveal" style="--i:3">
+        <div class="step__num"><span>04</span> / 06</div>
+        <div>
+          <h3>Temperatura superficiale (LST)</h3>
+          <p>La banda termica viene convertita in temperatura di superficie, prima in Kelvin e poi in gradi Celsius.</p>
+          <span class="tag">ST_B10 → °C</span>
+        </div>
+      </div>
+      <div class="step reveal" style="--i:4">
+        <div class="step__num"><span>05</span> / 06</div>
+        <div>
+          <h3>Normalizzazione topografica</h3>
+          <p>Un modello digitale del terreno (DEM) corregge la temperatura in base alla quota, usando un lapse rate di 0.0065 °C/m — così l'effetto altitudine non viene scambiato per un effetto vegetazione.</p>
+          <span class="tag">USGS/SRTMGL1_003</span>
+        </div>
+      </div>
+      <div class="step reveal" style="--i:5">
+        <div class="step__num"><span>06</span> / 06</div>
+        <div>
+          <h3>Analisi per copertura del suolo</h3>
+          <p>Temperatura normalizzata e NDVI vengono aggregati per classe di uso del suolo, per confrontare direttamente aree costruite, vegetate e agricole.</p>
+          <span class="tag">ESA/WorldCover/v200</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js" crossorigin="anonymous"></script>
+<!-- TIME SERIES (dati reali) -->
+<section class="section" id="timeseries">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Dati reali · 39 mesi, 2013–2025</div>
+      <h2>Temperatura e vegetazione, estate dopo estate.</h2>
+      <p>Temperatura normalizzata (LST) e NDVI, entrambi riportati su scala 0–1 per essere confrontabili, mese per mese da giugno a agosto di ogni anno. È lo stesso confronto del grafico Plotly nel notebook, con i valori effettivamente calcolati su Genova.</p>
+    </div>
 
-    <script type="application/vnd.jupyter.widget-state+json">
-    {
-      "version_major": 2,
-      "version_minor": 0,
-      "state": {
-        //
-        // UNISCI QUI GLI "STATE" DI TUTTE E 4 LE TUE MAPPE
-        //
-        // Esempio:
-        // "6055f85c50d3441381d3cc8821600e3e": { "model_name": "LayoutModel", ... },
-        // "c4b97952dfc342c88631152874cd4bbf": { "model_name": "LeafletMapModel", ... },
-        // "altro_id_dalla_mappa_2": { ... },
-        // "e_cosi_via_per_le_altre": { ... }
-        //
-        // Assicurati che ogni oggetto JSON finisca con una virgola, tranne l'ultimo.
-        
-      }
+    <div class="ts-chart reveal" id="tsChart">
+      <div class="ts-chart__legend">
+        <span class="ts-legend-item"><i style="background:var(--warm)"></i>Temperatura normalizzata</span>
+        <span class="ts-legend-item"><i style="background:var(--cool)"></i>NDVI</span>
+      </div>
+      <svg id="tsSvg" viewBox="0 0 900 320" preserveAspectRatio="none" aria-label="Grafico temperatura normalizzata e NDVI, 2013-2025"></svg>
+      <div class="ts-chart__caption">Scala 0–1 per punto min/max del periodo · LST: 20.6–36.8 °C · NDVI: 0.108–0.159</div>
+    </div>
+  </div>
+</section>
+
+<!-- LAND COVER -->
+<section class="section" id="landcover">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Copertura del suolo</div>
+      <h2>Otto classi, un solo confronto: quanto scalda ciascuna.</h2>
+      <p>Ogni pixel dell'area viene etichettato secondo ESA WorldCover, poi raggruppato per calcolare la temperatura normalizzata media di ogni classe, mese per mese.</p>
+    </div>
+
+    <div class="lc-classes reveal">
+      <span class="pill"><i style="background:#2f6b3a"></i>Alberi/Foresta</span>
+      <span class="pill"><i style="background:#8fae4a"></i>Arbusti</span>
+      <span class="pill"><i style="background:#c9d96a"></i>Prati/Erba</span>
+      <span class="pill"><i style="background:#e0b64a"></i>Coltivazioni</span>
+      <span class="pill"><i style="background:#ff5a36"></i>Costruito/Urbano</span>
+      <span class="pill"><i style="background:#a3b0a8"></i>Vegetazione rada</span>
+      <span class="pill"><i style="background:#3fa7c9"></i>Acqua</span>
+      <span class="pill"><i style="background:#5fc7c0"></i>Zone Umide</span>
+    </div>
+
+    <div class="lc-chart reveal" id="lcChart">
+      <div class="lc-chart__bars">
+        <div class="lc-bar" style="--i:0; --h:0.8702"><b>33.8°</b><span>Foresta</span></div>
+        <div class="lc-bar" style="--i:1; --h:0.9114"><b>35.4°</b><span>Arbusti</span></div>
+        <div class="lc-bar" style="--i:2; --h:0.9407"><b>36.5°</b><span>Prati</span></div>
+        <div class="lc-bar" style="--i:3; --h:0.9972"><b>38.7°</b><span>Colture</span></div>
+        <div class="lc-bar" style="--i:4; --h:1"><b>38.8°</b><span>Urbano</span></div>
+        <div class="lc-bar" style="--i:5; --h:0.9717"><b>37.7°</b><span>Veg. rada</span></div>
+        <div class="lc-bar cool" style="--i:6; --h:0.6615"><b>25.7°</b><span>Acqua</span></div>
+        <div class="lc-bar cool" style="--i:7; --h:0.7576"><b>29.4°</b><span>Zone umide</span></div>
+      </div>
+      <div class="lc-chart__caption">Dati reali — temperatura normalizzata media (°C) per classe, giugno–agosto 2013–2025.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FINDINGS -->
+<section class="section" id="findings">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Cosa permette di osservare</div>
+      <h2>Tre letture che il modello rende possibili.</h2>
+    </div>
+    <div class="findings reveal-group">
+      <div class="finding reveal" style="--i:0">
+        <div class="mark">01</div>
+        <h3>13 °C tra urbano e acqua</h3>
+        <p>Anche dopo la normalizzazione per l'altitudine, le aree costruite risultano in media 38.8 °C contro i 25.7 °C dell'acqua — un divario di circa 13 °C tra la classe più calda e quella più fresca.</p>
+      </div>
+      <div class="finding reveal" style="--i:1">
+        <div class="mark">02</div>
+        <h3>5 °C tra urbano e foresta</h3>
+        <p>Il confronto più diretto per l'isola di calore: il costruito è in media 5 °C più caldo delle aree forestate (38.8 °C contro 33.8 °C), a parità di quota.</p>
+      </div>
+      <div class="finding reveal" style="--i:2">
+        <div class="mark">03</div>
+        <h3>2022, l'estate più calda della serie</h3>
+        <p>Luglio 2022 registra il picco della serie storica, 36.8 °C di LST normalizzata — coerente con l'ondata di caldo che ha colpito il Mediterraneo quell'estate.</p>
+      </div>
+      <div class="finding reveal" style="--i:3">
+        <div class="mark">04</div>
+        <h3>Un anno di riferimento, per misurare il cambiamento</h3>
+        <p>La mappa interattiva calcola anche il delta di temperatura tra un anno e un anno di riferimento scelto dall'utente, per visualizzare dove il riscaldamento è più marcato.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section class="section" id="stack">
+  <div class="wrap">
+    <div class="section__head reveal">
+      <div class="eyebrow">Stack tecnico</div>
+      <h2>Strumenti usati nel notebook.</h2>
+    </div>
+    <div class="stack reveal">
+      <span class="pill">Google Earth Engine</span>
+      <span class="pill">geemap</span>
+      <span class="pill">Landsat 8 · Collection 2</span>
+      <span class="pill">SRTM DEM</span>
+      <span class="pill">ESA WorldCover v200</span>
+      <span class="pill">Python</span>
+      <span class="pill">Pandas</span>
+      <span class="pill">Plotly</span>
+      <span class="pill">ipywidgets</span>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow" style="justify-content:center">Esplora il progetto</div>
+      <h2>Il notebook completo, con mappa interattiva inclusa.</h2>
+      <p>Apri l'analisi su Colab per esplorare anno per anno, layer per layer, oppure guarda il codice sorgente su GitHub.</p>
+      <div class="actions">
+        <a class="btn btn--solid" href="https://colab.research.google.com/github/Biondi-Tommaso/EarthObservation/blob/main/UHI_GE_Biondi.ipynb" target="_blank" rel="noopener">Apri il notebook →</a>
+        <a class="btn btn--ghost" href="https://github.com/Biondi-Tommaso/EarthObservation" target="_blank" rel="noopener">github.com/Biondi-Tommaso/EarthObservation</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-note">UHI_GE_Biondi · Earth Observation · 2013–2025</div>
+    <nav>
+      <a href="https://github.com/Biondi-Tommaso/EarthObservation" target="_blank" rel="noopener">Repository</a>
+      <a href="https://github.com/Biondi-Tommaso" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  // Dati reali esportati dal notebook (uhi_timeseries.json)
+  const SERIES_DATA = [{"date": "2013-06-01", "lst": 29.13, "ndvi": 0.1518}, {"date": "2013-07-01", "lst": 34.72, "ndvi": 0.1476}, {"date": "2013-08-01", "lst": 33.48, "ndvi": 0.133}, {"date": "2014-06-01", "lst": 28.51, "ndvi": 0.1576}, {"date": "2014-07-01", "lst": 31.32, "ndvi": 0.1399}, {"date": "2014-08-01", "lst": 30.67, "ndvi": 0.1348}, {"date": "2015-06-01", "lst": 31.68, "ndvi": 0.1486}, {"date": "2015-07-01", "lst": 33.74, "ndvi": 0.1366}, {"date": "2015-08-01", "lst": 33.67, "ndvi": 0.1265}, {"date": "2016-06-01", "lst": 29.54, "ndvi": 0.1558}, {"date": "2016-07-01", "lst": 31.06, "ndvi": 0.147}, {"date": "2016-08-01", "lst": 30.19, "ndvi": 0.1256}, {"date": "2017-06-01", "lst": 26.82, "ndvi": 0.1507}, {"date": "2017-07-01", "lst": 32.56, "ndvi": 0.135}, {"date": "2017-08-01", "lst": 33.67, "ndvi": 0.1285}, {"date": "2018-06-01", "lst": 30.02, "ndvi": 0.159}, {"date": "2018-07-01", "lst": 34.07, "ndvi": 0.1483}, {"date": "2018-08-01", "lst": 33.84, "ndvi": 0.1416}, {"date": "2019-06-01", "lst": 31.68, "ndvi": 0.1531}, {"date": "2019-07-01", "lst": 33.24, "ndvi": 0.1467}, {"date": "2019-08-01", "lst": 31.54, "ndvi": 0.1431}, {"date": "2020-06-01", "lst": 24.95, "ndvi": 0.1479}, {"date": "2020-07-01", "lst": 31.24, "ndvi": 0.1475}, {"date": "2020-08-01", "lst": 29.11, "ndvi": 0.1173}, {"date": "2021-06-01", "lst": 30.4, "ndvi": 0.1557}, {"date": "2021-07-01", "lst": 32.91, "ndvi": 0.1418}, {"date": "2021-08-01", "lst": 20.55, "ndvi": 0.1084}, {"date": "2022-06-01", "lst": 31.44, "ndvi": 0.1398}, {"date": "2022-07-01", "lst": 36.8, "ndvi": 0.1339}, {"date": "2022-08-01", "lst": 36.39, "ndvi": 0.1261}, {"date": "2023-06-01", "lst": 33.64, "ndvi": 0.1532}, {"date": "2023-07-01", "lst": 33.95, "ndvi": 0.1448}, {"date": "2023-08-01", "lst": 34.17, "ndvi": 0.127}, {"date": "2024-06-01", "lst": 28.38, "ndvi": 0.1575}, {"date": "2024-07-01", "lst": 33.59, "ndvi": 0.1477}, {"date": "2024-08-01", "lst": 34.06, "ndvi": 0.1405}, {"date": "2025-06-01", "lst": 28.19, "ndvi": 0.1533}, {"date": "2025-07-01", "lst": 35.16, "ndvi": 0.1506}, {"date": "2025-08-01", "lst": 33.96, "ndvi": 0.1413}];
+
+  // costruzione del grafico a linee con i dati reali
+  function buildTimeSeriesChart(){
+    const svg = document.getElementById('tsSvg');
+    const W = 900, H = 320, padL = 34, padR = 10, padT = 16, padB = 34;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+
+    const lstVals = SERIES_DATA.map(d => d.lst);
+    const ndviVals = SERIES_DATA.map(d => d.ndvi);
+    const lstMin = Math.min(...lstVals), lstMax = Math.max(...lstVals);
+    const ndviMin = Math.min(...ndviVals), ndviMax = Math.max(...ndviVals);
+
+    const n = SERIES_DATA.length;
+    const x = i => padL + (i / (n - 1)) * plotW;
+    const yFrom = (v, min, max) => padT + (1 - (v - min) / (max - min)) * plotH;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    function pathFor(values, min, max){
+      return values.map((v,i) => `${i===0?'M':'L'} ${x(i).toFixed(1)} ${yFrom(v,min,max).toFixed(1)}`).join(' ');
     }
-    </script>
+
+    // linee guida orizzontali leggere
+    for(let g=0; g<=2; g++){
+      const gy = padT + (g/2) * plotH;
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', padL); line.setAttribute('x2', W - padR);
+      line.setAttribute('y1', gy); line.setAttribute('y2', gy);
+      line.setAttribute('stroke', 'var(--line)'); line.setAttribute('stroke-width', '1');
+      svg.appendChild(line);
+    }
+
+    // etichette anno sull'asse x (una ogni anno, al mese di luglio)
+    SERIES_DATA.forEach((d,i) => {
+      if(d.date.slice(5,7) === '07'){
+        const t = document.createElementNS(ns, 'text');
+        t.setAttribute('x', x(i)); t.setAttribute('y', H - 10);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('class', 'ts-axis-label');
+        t.textContent = d.date.slice(0,4);
+        svg.appendChild(t);
+      }
+    });
+
+    // linea NDVI (fredda)
+    const ndviPath = document.createElementNS(ns, 'path');
+    ndviPath.setAttribute('d', pathFor(ndviVals, ndviMin, ndviMax));
+    ndviPath.setAttribute('class', 'ts-line cool');
+    svg.appendChild(ndviPath);
+
+    // linea LST (calda)
+    const lstPath = document.createElementNS(ns, 'path');
+    lstPath.setAttribute('d', pathFor(lstVals, lstMin, lstMax));
+    lstPath.setAttribute('class', 'ts-line warm');
+    svg.appendChild(lstPath);
+
+    // animazione "disegno" della linea, ripetibile
+    [ndviPath, lstPath].forEach(p => {
+      const len = p.getTotalLength();
+      p.style.strokeDasharray = len;
+      p.style.strokeDashoffset = len;
+      p.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.2,.65,.3,1)';
+    });
+
+    // punti finali (ultimo mese) come marcatori
+    const lastI = n - 1;
+    [[lstVals, lstMin, lstMax, 'var(--warm)'], [ndviVals, ndviMin, ndviMax, 'var(--cool)']].forEach(([vals,min,max,color]) => {
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', x(lastI)); dot.setAttribute('cy', yFrom(vals[lastI], min, max));
+      dot.setAttribute('r', 4);
+      dot.setAttribute('stroke', color);
+      dot.setAttribute('class', 'ts-dot');
+      svg.appendChild(dot);
+    });
+
+    return [ndviPath, lstPath];
+  }
+
+  const tsLines = buildTimeSeriesChart();
+  const tsChartEl = document.getElementById('tsChart');
+  const tsIo = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      entry.target.classList.toggle('is-visible', entry.isIntersecting);
+      if(entry.isIntersecting){
+        tsLines.forEach(p => { p.style.strokeDashoffset = '0'; });
+      } else {
+        tsLines.forEach(p => { p.style.transition = 'none'; p.style.strokeDashoffset = p.getTotalLength(); });
+        requestAnimationFrame(() => tsLines.forEach(p => { p.style.transition = 'stroke-dashoffset 1.4s cubic-bezier(.2,.65,.3,1)'; }));
+      }
+    });
+  }, { threshold: 0.3 });
+  tsIo.observe(tsChartEl);
+
+  // hero load-in sequence
+  window.addEventListener('DOMContentLoaded', () => {
+    requestAnimationFrame(() => {
+      document.getElementById('hero').classList.add('is-ready');
+    });
+  });
+
+  // scroll-triggered reveal — si ripete sia scendendo che risalendo
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      entry.target.classList.toggle('is-visible', entry.isIntersecting);
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -10% 0px' });
+  revealEls.forEach(el => io.observe(el));
+
+  // land-cover bar chart trigger — si ripete a ogni passaggio nel viewport
+  const lc = document.getElementById('lcChart');
+  const lcIo = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      entry.target.classList.toggle('is-visible', entry.isIntersecting);
+    });
+  }, { threshold: 0.3 });
+  lcIo.observe(lc);
+
+  // thermal scroll rail
+  const heatFill = document.getElementById('heatFill');
+  function updateRail(){
+    const h = document.documentElement;
+    const scrolled = h.scrollTop;
+    const max = h.scrollHeight - h.clientHeight;
+    const pct = max > 0 ? (scrolled / max) * 100 : 0;
+    heatFill.style.height = pct + '%';
+  }
+  document.addEventListener('scroll', updateRail, { passive:true });
+  updateRail();
+
+  // Inizializzazione Mappa Leaflet per l'Area di Studio
+  const map = L.map('mapContainer', {
+    zoomControl: true,
+    scrollWheelZoom: false
+  }).setView([44.405, 8.934], 11);
+
+  // Tile layer scuro/neutro coerente con lo stile Earth Observation
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  // URL RAW del GeoJSON su GitHub
+  const geojsonUrl = 'https://raw.githubusercontent.com/Biondi-Tommaso/EarthObservation/main/Genova.geojson';
+
+  // Fetch del GeoJSON e renderizzazione del poligono di Genova
+  fetch(geojsonUrl)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Errore nel recupero del file GeoJSON');
+      }
+      return response.json();
+    })
+    .then(data => {
+      const geojsonLayer = L.geoJSON(data, {
+        style: {
+          color: '#e0501f',       // var(--warm)
+          weight: 2,
+          opacity: 0.8,
+          fillColor: '#1f8aa8',   // var(--cool)
+          fillOpacity: 0.25
+        }
+      }).addTo(map);
+
+      // Inquadra la mappa esattamente sui confini del GeoJSON
+      map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+    })
+    .catch(err => {
+      console.error('Impossibile caricare il GeoJSON:', err);
+    });
+</script>
 
 </body>
 </html>
